@@ -2,7 +2,8 @@
 
 **A free, offline, browser-based tool to view, document, and export your website or project in a client- and AI-friendly format.**  
 
----
+<img src="Assets/hero.jpg" alt="First Page" style="max-width:100%; height:auto;">
+
 ## 🌐 Live Demo
 
 Try the tool directly in your browser!  
