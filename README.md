@@ -3,6 +3,12 @@
 **A free, offline, browser-based tool to view, document, and export your website or project in a client- and AI-friendly format.**  
 
 ---
+## 🌐 Live Demo
+
+Try the tool directly in your browser!  
+👉 [Click here to see the live demo](https://nuwan-jk.github.io/site-to-report-prompt/)
+
+---
 
 ## 🌟 Overview
 
