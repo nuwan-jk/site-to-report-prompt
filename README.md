@@ -99,7 +99,7 @@ Binary files:
 To make them responsive (desktop & mobile), we use HTML `<img>` with `max-width:100%; height:auto;`:
 
 **First Page / Landing View:**  
-<img src="Assets/screenshot01.jpg" alt="First Page" style="max-width:100%; height:auto;">
+<img src="Assets/Screenshot01.jpg" alt="First Page" style="max-width:100%; height:auto;">
 
 **Drag & Drop Project:**  
 <img src="Assets/screenshot02.jpg" alt="Drag & Drop" style="max-width:100%; height:auto;">
