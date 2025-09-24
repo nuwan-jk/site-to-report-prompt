@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Site Structure & Code Viewer — Final</title>
+<style>
+  body { font-family: monospace; background:#0f172a; color:#e2e8f0; margin:0; padding:20px; }
+  h1 { font-size:24px; margin-bottom:12px; }
+  #drop-zone {
+    border:2px dashed #64748b; border-radius:8px; padding:26px;
+    text-align:center; color:#94a3b8; margin-bottom:16px;
+  }
+  #controls { margin-bottom:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  #controls .meta { color:#94a3b8; font-size:13px; }
+  #tree {
+    background:#1e293b; padding:14px; border-radius:8px;
+    white-space:pre; font-family:monospace;
+  }
+  .tree-item { margin-bottom:4px; }
+  .line { white-space:pre; }
+  .icon { margin:0 4px; }
+  .file-name { color:#38bdf8; cursor:pointer; }
+  .file-name:hover { text-decoration:underline; }
+  .actions button {
+    border:none; color:#fff; padding:2px 6px; margin-left:4px;
+    border-radius:4px; cursor:pointer; font-size:12px;
+  }
+  .rename { background:#2563eb; }
+  .delete { background:#dc2626; }
+  .addfile { background:#16a34a; }
+  .addfolder { background:#f59e0b; }
+  #code-view {
+    margin-top:16px; background:#0f172a; border:1px solid #334155;
+    border-radius:8px; padding:10px; white-space:pre;
+    overflow-x:auto; max-height:380px;
+  }
+</style>
+</head>
+<body>
+  <h1>Site Structure & Code Viewer</h1>
+  <div id="drop-zone">Drag & drop your entire project folder here</div>
+  <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+  <div id="controls">
+    <label><input type="checkbox" id="hide-binary"> Hide Binary Code Sections</label>
+    <button id="export-html">Export HTML Report</button>
+    <button id="export-txt">Export TXT Report</button>
+    <span class="meta">Tree always shows all files; toggle only hides code sections.</span>
+  </div>
+  <div id="tree"></div>
+  <div id="code-view" hidden></div>
+
+<script>
+let fileData = {}; // path -> {content, originalName?}
+
+const textExt = [".html",".htm",".css",".js",".php",".json",".txt",".md",".xml",".sql",".c",".cpp",".py",".rb",".java"];
+const imgExt = [".jpg",".jpeg",".png",".gif",".svg",".webp"];
+const pdfExt = [".pdf",".doc",".docx"];
+
+function isTextFile(f){return textExt.some(e=>f.toLowerCase().endsWith(e));}
+function isImg(f){return imgExt.some(e=>f.toLowerCase().endsWith(e));}
+function isPdf(f){return pdfExt.some(e=>f.toLowerCase().endsWith(e));}
+
+function iconFor(name,isFolder){
+  if(isFolder) return "📂";
+  if(isImg(name)) return "🖼️";
+  if(isPdf(name)) return "📑";
+  if(isTextFile(name)) return "📄";
+  return "⚙️";
+}
+
+/* build nested structure */
+function buildTree(files){
+  const root={};
+  for(const p of Object.keys(files)){
+    const parts=p.split('/').filter(Boolean);
+    if(parts[parts.length-1]===".keep"){parts.pop();}
+    let cur=root;
+    parts.forEach((part,i)=>{
+      const last=i===parts.length-1;
+      if(!cur[part]) cur[part]= last? (p.endsWith("/.keep")?{}:null):{};
+      if(cur[part]===null && !last) cur[part]={};
+      cur=cur[part]!==null?cur[part]:cur;
+    });
+  }
+  return root;
+}
+
+/* render ASCII lines */
+function renderTree(tree,prefix="",parent=""){
+  const items=[];
+  const keys=Object.keys(tree).sort();
+  keys.forEach((k,i)=>{
+    if(k===".keep") return;
+    const full=parent?parent+"/"+k:k;
+    const isFolder=tree[k]!==null;
+    const branch=(i===keys.length-1?"└─ ":"├─ ");
+    const childPrefix=prefix+(i===keys.length-1?"   ":"│  ");
+    items.push({line:prefix+branch, key:k, full, isFolder});
+    if(isFolder) items.push(...renderTree(tree[k],childPrefix,full));
+  });
+  return items;
+}
+
+function renderUI(){
+  const c=document.getElementById("tree");
+  c.innerHTML="";
+  const t=buildTree(fileData);
+  const arr=renderTree(t);
+  arr.forEach(item=>{
+    const row=document.createElement("div");row.className="tree-item";
+    const span=document.createElement("span");span.className="line";
+    span.textContent=item.line;row.appendChild(span);
+    const icon=document.createElement("span");icon.className="icon";icon.textContent=iconFor(item.key,item.isFolder);row.appendChild(icon);
+    const name=document.createElement("span");name.className="file-name";name.textContent=item.key;
+    name.onclick=()=>openNode(item.full,item.isFolder);row.appendChild(name);
+    const acts=document.createElement("span");acts.className="actions";
+    const br=document.createElement("button");br.textContent="Rename";br.className="rename";br.onclick=e=>{e.stopPropagation();rename(item.full,item.isFolder);};acts.appendChild(br);
+    const bd=document.createElement("button");bd.textContent="Delete";bd.className="delete";bd.onclick=e=>{e.stopPropagation();del(item.full,item.isFolder);};acts.appendChild(bd);
+    if(item.isFolder){
+      const bf=document.createElement("button");bf.textContent="+File";bf.className="addfile";bf.onclick=e=>{e.stopPropagation();addFile(item.full);};acts.appendChild(bf);
+      const bfo=document.createElement("button");bfo.textContent="+Folder";bfo.className="addfolder";bfo.onclick=e=>{e.stopPropagation();addFolder(item.full);};acts.appendChild(bfo);
+    }
+    row.appendChild(acts);
+    c.appendChild(row);
+  });
+  document.getElementById("code-view").hidden=true;
+}
+
+function openNode(path,isFolder){
+  const cv=document.getElementById("code-view");cv.hidden=false;
+  if(isFolder){cv.textContent="Folder: "+path;return;}
+  const d=fileData[path];const hide=document.getElementById("hide-binary").checked;
+  if(!d){cv.textContent="[Code not available]";return;}
+  if(d.content==="BINARY"){cv.textContent=hide?"[Binary file: code hidden]":"[Binary file: not readable as text]";return;}
+  if(d.content===""){cv.textContent="[Code not available]";return;}
+  cv.textContent=d.content;
+}
+
+/* actions */
+function rename(path,isFolder){
+  const old=path.split("/").pop();const newN=prompt("New name",old);if(!newN||newN===old)return;
+  const parts=path.split("/");parts[parts.length-1]=newN;const newP=parts.join("/");
+  if(isFolder){
+    Object.keys(fileData).forEach(k=>{if(k===path||k.startsWith(path+"/")){fileData[k.replace(path,newP)]=fileData[k];delete fileData[k];}});
+  } else {fileData[newP]=fileData[path];if(!fileData[newP].originalName)fileData[newP].originalName=old;delete fileData[path];}
+  renderUI();
+}
+function del(path,isFolder){
+  if(isFolder)Object.keys(fileData).forEach(k=>{if(k===path||k.startsWith(path+"/"))delete fileData[k];});
+  else delete fileData[path];
+  renderUI();
+}
+function addFile(folder){const n=prompt("File name","newfile.txt");if(n)fileData[folder+"/"+n]={content:""};renderUI();}
+function addFolder(folder){const n=prompt("Folder name","newfolder");if(n)fileData[folder+"/"+n+"/.keep"]={content:""};renderUI();}
+
+/* drag drop */
+document.getElementById("drop-zone").ondragover=e=>{e.preventDefault();};
+document.getElementById("drop-zone").ondrop=async e=>{
+  e.preventDefault();fileData={};
+  async function trav(entry,path=""){
+    if(entry.isFile){
+      await new Promise(r=>entry.file(f=>{
+        if(!isTextFile(f.name)){fileData[path+f.name]={content:"BINARY"};r();}
+        else{const rd=new FileReader();rd.onload=()=>{fileData[path+f.name]={content:rd.result};r();};rd.readAsText(f);}
+      }));
+    } else if(entry.isDirectory){
+      const dr=entry.createReader();
+      await new Promise(r=>dr.readEntries(async ents=>{for(const en of ents)await trav(en,path+entry.name+"/");r();}));
+    }
+  }
+  for(const it of e.dataTransfer.items){const en=it.webkitGetAsEntry();if(en)await trav(en);}
+  renderUI();
+};
+
+// click-to-upload support for mobile
+const dropZone = document.getElementById("drop-zone");
+const folderInput = document.getElementById("folder-input");
+
+dropZone.onclick = () => folderInput.click();
+
+folderInput.onchange = async (e) => {
+  fileData = {};
+  for (const f of e.target.files) {
+    const path = f.webkitRelativePath || f.name;
+    if (!isTextFile(f.name)) {
+      fileData[path] = { content: "BINARY" };
+    } else {
+      const text = await f.text();
+      fileData[path] = { content: text };
+    }
+  }
+  renderUI();
+};
+
+/* exports */
+function escapeHtml(s){return s? s.replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])):"";}
+function ascii(tree,prefix=""){let o="";const k=Object.keys(tree).filter(x=>x!==".keep").sort();k.forEach((x,i)=>{const br=i===k.length-1?"└─ ":"├─ ";o+=prefix+br+x+"\n";if(tree[x]!==null)o+=ascii(tree[x],prefix+(i===k.length-1?"   ":"│  "));});return o;}
+function asciiIcons(tree,prefix=""){let o="";const k=Object.keys(tree).filter(x=>x!==".keep").sort();k.forEach((x,i)=>{const isF=tree[x]!==null;const br=i===k.length-1?"└─ ":"├─ ";o+=prefix+br+iconFor(x,isF)+" "+x+"\n";if(isF)o+=asciiIcons(tree[x],prefix+(i===k.length-1?"   ":"│  "));});return o;}
+
+/* FIXED: hide-binary skips files entirely */
+function exportTxt(){
+  const hide=document.getElementById("hide-binary").checked;
+  let txt="Site Structure:\n\n"+ascii(buildTree(fileData))+"\nFiles and contents:\n\n";
+  for(const p of Object.keys(fileData).sort()){
+    if(p.endsWith("/.keep"))continue;
+    const d=fileData[p];if(!d)continue;
+    if(d.content==="BINARY" && hide) continue; // skip binary completely
+
+    const n=p.split("/").pop();
+    txt+="---------------------\nFile: "+n+(d.originalName?" [original name: "+d.originalName+"]":"")+
+         "\nPath: /"+p+"\n---------------------\n";
+    if(d.content==="BINARY"){
+      txt+="[Binary file: not readable as text]\n\n";
+    } else if(d.content===""){
+      txt+="[Code not available]\n\n";
+    } else {
+      txt+=d.content+"\n\n";
+    }
+  }
+  const blob=new Blob([txt],{type:"text/plain"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="site-doc.txt";a.click();
+}
+
+function exportHtml(){
+  const hide=document.getElementById("hide-binary").checked;
+  let h=`<!doctype html><html><head><meta charset="utf-8"><title>Site Documentation</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a;padding:20px;}
+    h1{font-size:24px;margin-bottom:10px;}
+    .tree{background:#eef2ff;border:1px solid #cbd5e1;padding:14px;border-radius:8px;font-family:monospace;white-space:pre;}
+    .file{margin-top:18px;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;}
+    .file h2{margin:0 0 6px 0;font-size:16px;}
+    .meta{color:#475569;font-size:13px;margin-bottom:8px;}
+    pre{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:6px;overflow:auto;}
+  </style></head><body>`;
+  h+="<h1>Site Structure</h1><div class='tree'>"+escapeHtml(asciiIcons(buildTree(fileData)))+"</div>";
+
+  for(const p of Object.keys(fileData).sort()){
+    if(p.endsWith("/.keep"))continue;
+    const d=fileData[p];if(!d)continue;
+    if(d.content==="BINARY" && hide) continue; // skip binary completely
+
+    const n=p.split("/").pop();
+    h+="<div class='file'><h2>"+escapeHtml(n)+"</h2>";
+    if(d.originalName)h+="<div class='meta'>original name: "+escapeHtml(d.originalName)+"</div>";
+    h+="<div class='meta'>Path: /"+escapeHtml(p)+"</div>";
+    if(d.content==="BINARY"){
+      h+="<pre>[Binary file: not readable as text]</pre>";
+    } else if(d.content===""){
+      h+="<pre>[Code not available]</pre>";
+    } else {
+      h+="<pre>"+escapeHtml(d.content)+"</pre>";
+    }
+    h+="</div>";
+  }
+
+  h+="</body></html>";
+  const blob=new Blob([h],{type:"text/html"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="site-doc.html";a.click();
+}
+
+document.getElementById("export-txt").onclick=exportTxt;
+document.getElementById("export-html").onclick=exportHtml;
+</script>
+</body>
+</html>
