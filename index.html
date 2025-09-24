@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Site Structure & Code Viewer — Final</title>
 <style>
+  body { font-family: monospace; background:#0f172a; colo<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Site Structure & Code Viewer — Final</title>
+<style>
   body { font-family: monospace; background:#0f172a; color:#e2e8f0; margin:0; padding:20px; }
   h1 { font-size:24px; margin-bottom:12px; }
   #drop-zone {
@@ -40,6 +47,7 @@
 <body>
   <h1>Site Structure & Code Viewer</h1>
   <div id="drop-zone">Drag & drop your entire project folder here</div>
+  <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
   <div id="controls">
     <label><input type="checkbox" id="hide-binary"> Hide Binary Code Sections</label>
     <button id="export-html">Export HTML Report</button>
@@ -172,8 +180,28 @@ document.getElementById("drop-zone").ondrop=async e=>{
   renderUI();
 };
 
+// click-to-upload support for mobile
+const dropZone = document.getElementById("drop-zone");
+const folderInput = document.getElementById("folder-input");
+
+dropZone.onclick = () => folderInput.click();
+
+folderInput.onchange = async (e) => {
+  fileData = {};
+  for (const f of e.target.files) {
+    const path = f.webkitRelativePath || f.name;
+    if (!isTextFile(f.name)) {
+      fileData[path] = { content: "BINARY" };
+    } else {
+      const text = await f.text();
+      fileData[path] = { content: text };
+    }
+  }
+  renderUI();
+};
+
 /* exports */
-function escapeHtml(s){return s? s.replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])):"";}
+function escapeHtml(s){return s? s.replace(/[&<>]/g,ch=>({'&':'&','<':'<','>':'>'}[ch])):"";}
 function ascii(tree,prefix=""){let o="";const k=Object.keys(tree).filter(x=>x!==".keep").sort();k.forEach((x,i)=>{const br=i===k.length-1?"└─ ":"├─ ";o+=prefix+br+x+"\n";if(tree[x]!==null)o+=ascii(tree[x],prefix+(i===k.length-1?"   ":"│  "));});return o;}
 function asciiIcons(tree,prefix=""){let o="";const k=Object.keys(tree).filter(x=>x!==".keep").sort();k.forEach((x,i)=>{const isF=tree[x]!==null;const br=i===k.length-1?"└─ ":"├─ ";o+=prefix+br+iconFor(x,isF)+" "+x+"\n";if(isF)o+=asciiIcons(tree[x],prefix+(i===k.length-1?"   ":"│  "));});return o;}
 
