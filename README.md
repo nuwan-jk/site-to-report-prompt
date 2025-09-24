@@ -102,16 +102,16 @@ To make them responsive (desktop & mobile), we use HTML `<img>` with `max-width:
 <img src="Assets/Screenshot01.jpg" alt="First Page" style="max-width:100%; height:auto;">
 
 **Drag & Drop Project:**  
-<img src="Assets/screenshot02.jpg" alt="Drag & Drop" style="max-width:100%; height:auto;">
+<img src="Assets/Screenshot02.jpg" alt="Drag & Drop" style="max-width:100%; height:auto;">
 
 **Code / File Preview:**  
-<img src="Assets/screenshot03.jpg" alt="Code Preview" style="max-width:100%; height:auto;">
+<img src="Assets/Screenshot03.jpg" alt="Code Preview" style="max-width:100%; height:auto;">
 
 **HTML Export:**  
-<img src="Assets/screenshot04.jpg" alt="Export Report" style="max-width:100%; height:auto;">
+<img src="Assets/Screenshot04.jpg" alt="Export Report" style="max-width:100%; height:auto;">
 
 **TXT Export:**  
-<img src="Assets/screenshot05.jpg" alt="Export Report" style="max-width:100%; height:auto;">
+<img src="Assets/Screenshot05.jpg" alt="Export Report" style="max-width:100%; height:auto;">
 
 ---
 
