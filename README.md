@@ -9,6 +9,9 @@
 Try the tool directly in your browser!  
 👉 [Click here to see the live demo](https://nuwan-jk.github.io/site-to-report-prompt/)
 
+Try new v1.2.0 (𝗯𝗲𝘁𝗮)  
+👉 [Click here to see the live demo](https://nuwan-jk.github.io/site-to-report-prompt/site-structure-viewer_v1.2.0_test.html)
+
 ---
 
 ## 🌟 Overview
